@@ -21,10 +21,10 @@ ndk_tools/
 │   ├── config.py                # 配置文件
 │   └── utils.py                 # 工具类
 ├── scripts/               
-│   ├── parse_dmp.sh             # 解析.dmp文件的Shell脚本
-│   ├── parse_logcat.sh          # 解析logcat崩溃日志的Shell脚本
-│   ├── parse_dmp.bat            # 解析.dmp文件的Batch脚本
-│   └── parse_logcat.bat         # 解析logcat崩溃日志的Batch脚本
+│   ├── ndk_parse_dmp.sh         # 解析.dmp文件的Shell脚本
+│   ├── ndk_parse_logcat.sh      # 解析logcat崩溃日志的Shell脚本
+│   ├── ndk_parse_dmp.bat        # 解析.dmp文件的Batch脚本
+│   └── ndk_parse_logcat.bat     # 解析logcat崩溃日志的Batch脚本
 ```
 
 ## 安装要求
@@ -68,37 +68,37 @@ if crash_info:
 在Linux/macOS上：
 ```bash
 # 基本用法
-./scripts/parse_logcat.sh app_crash.log
+./scripts/ndk_parse_logcat.sh app_crash.log
 
 # 使用符号表
-./scripts/parse_logcat.sh -s /path/to/symbols app_crash.log
+./scripts/ndk_parse_logcat.sh -s /path/to/symbols app_crash.log
 # 或
-./scripts/parse_logcat.sh --symbols /path/to/symbols app_crash.log
+./scripts/ndk_parse_logcat.sh --symbols /path/to/symbols app_crash.log
 
 # 使用环境变量设置符号表
 export SYMBOLS_DIR=/path/to/symbols
-./scripts/parse_logcat.sh app_crash.log
+./scripts/ndk_parse_logcat.sh app_crash.log
 
 # 显示帮助信息
-./scripts/parse_logcat.sh --help
+./scripts/ndk_parse_logcat.sh --help
 ```
 
 在Windows上：
 ```batch
 :: 基本用法
-scripts\parse_logcat.bat app_crash.log
+scripts\ndk_parse_logcat.bat app_crash.log
 
 :: 使用符号表
-scripts\parse_logcat.bat -s C:\path\to\symbols app_crash.log
+scripts\ndk_parse_logcat.bat -s C:\path\to\symbols app_crash.log
 :: 或
-scripts\parse_logcat.bat --symbols C:\path\to\symbols app_crash.log
+scripts\ndk_parse_logcat.bat --symbols C:\path\to\symbols app_crash.log
 
 :: 使用环境变量设置符号表
 set SYMBOLS_DIR=C:\path\to\symbols
-scripts\parse_logcat.bat app_crash.log
+scripts\ndk_parse_logcat.bat app_crash.log
 
 :: 显示帮助信息
-scripts\parse_logcat.bat --help
+scripts\ndk_parse_logcat.bat --help
 ```
 
 ## 环境变量配置
@@ -111,7 +111,7 @@ scripts\parse_logcat.bat --help
 
 ## 命令行选项
 
-### parse_logcat 脚本选项
+### ndk_parse_logcat 脚本选项
 
 ```
 选项:

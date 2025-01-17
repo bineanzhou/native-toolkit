@@ -97,6 +97,17 @@ if [ -n "$SYMBOLS_DIR" ] && [ ! -d "$SYMBOLS_DIR" ]; then
     exit 3
 fi
 
+# Check if ANDROID_NDK_HOME is set when symbols are provided
+if [ -n "$SYMBOLS_DIR" ] && [ -z "$ANDROID_NDK_HOME" ]; then
+    echo "Error: ANDROID_NDK_HOME environment variable not set (required for symbolication)"
+    exit 1
+fi
+
+# Add parent directory to Python path to find ndk_tools module
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
+export PYTHONPATH="${PARENT_DIR}:${PYTHONPATH:-}"
+
 # Run Python script
 python3 -c "
 from ndk_tools import LogcatParser, Config
