@@ -108,10 +108,33 @@ if defined SYMBOLS_DIR (
 :: Add parent directory to Python path to find ndk_tools module
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "PARENT_DIR=%%~fI"
-set "PYTHONPATH=%PARENT_DIR%;%PYTHONPATH%"
+
+:: Ensure PYTHONPATH is set correctly with absolute paths
+if defined PYTHONPATH (
+    set "PYTHONPATH=%PARENT_DIR%\src;%PYTHONPATH%"
+) else (
+    set "PYTHONPATH=%PARENT_DIR%\src"
+)
+
+:: Debug information
+echo Using PYTHONPATH: %PYTHONPATH%
+echo Looking for ndk_tools in: %PARENT_DIR%\src
+
+:: Check if the module directory exists
+if not exist "%PARENT_DIR%\src" (
+    echo Error: Python module directory not found: %PARENT_DIR%\src
+    exit /b 1
+)
+
+:: List available Python files for debugging
+dir /b "%PARENT_DIR%\src"
 
 python -c "
-from ndk_tools import LogcatParser, Config
+import sys
+sys.path.insert(0, r'%PARENT_DIR%')
+from src.ndk_logcat_parser import LogcatParser
+from src.config import Config
+
 config = Config(
     ndk_path=r'%ANDROID_NDK_HOME%',
     symbols_dir=r'%SYMBOLS_DIR%' if '%SYMBOLS_DIR%' else None
@@ -130,7 +153,7 @@ if crash_info:
     # Try to symbolicate if symbols are available
     if config and config.symbols_dir:
         try:
-            from ndk_tools import NDKStackParser
+            from src.ndk_stack_parser import NDKStackParser
             stack_parser = NDKStackParser(config)
             print('\nSymbolicated Stack Trace:')
             print(stack_parser.symbolicate_trace(crash_info.stack_trace))

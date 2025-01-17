@@ -28,6 +28,6 @@ if "%ANDROID_NDK_HOME%"=="" (
 :: Add parent directory to Python path to find ndk_tools module
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "PARENT_DIR=%%~fI"
-set "PYTHONPATH=%PARENT_DIR%;%PYTHONPATH%"
+set "PYTHONPATH=%PARENT_DIR%\src;%PYTHONPATH%"
 
 python -c "from ndk_tools import NDKStackParser, Config; config = Config.from_env(); parser = NDKStackParser(config); print(parser.parse_dump_file('%DMP_FILE%'))" 

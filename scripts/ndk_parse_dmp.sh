@@ -35,7 +35,7 @@ export SYMBOLS_DIR=$SYMBOLS_DIR
 # Add parent directory to Python path to find ndk_tools module
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
-export PYTHONPATH="${PARENT_DIR}:${PYTHONPATH:-}"
+export PYTHONPATH="${PARENT_DIR}/src:${PYTHONPATH:-}"
 
 # Run Python script
 python3 -c "

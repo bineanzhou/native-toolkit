@@ -14,7 +14,7 @@
 
 ```
 ndk_tools/
-├── src/
+├── ndk_tools/
 │   ├── __init__.py              # 初始化模块
 │   ├── ndk_stack_parser.py      # NDK堆栈解析模块
 │   ├── logcat_parser.py         # logcat崩溃日志解析模块

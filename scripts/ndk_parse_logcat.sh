@@ -106,17 +106,45 @@ fi
 # Add parent directory to Python path to find ndk_tools module
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
-export PYTHONPATH="${PARENT_DIR}:${PYTHONPATH:-}"
+
+# Ensure PYTHONPATH is set correctly with absolute paths
+if [ -z "${PYTHONPATH}" ]; then
+    export PYTHONPATH="${PARENT_DIR}/src"
+else
+    export PYTHONPATH="${PARENT_DIR}/src:${PYTHONPATH}"
+fi
+
+# Debug information
+echo "Using PYTHONPATH: ${PYTHONPATH}"
+echo "Looking for ndk_tools in: ${PARENT_DIR}/src"
+
+# Check if the module directory exists
+if [ ! -d "${PARENT_DIR}/src" ]; then
+    echo "Error: Python module directory not found: ${PARENT_DIR}/src"
+    exit 1
+fi
+
+# List available Python files for debugging
+echo "Available Python files:"
+ls -l "${PARENT_DIR}/src"
 
 # Run Python script
 python3 -c "
-from ndk_tools import LogcatParser, Config
+import sys
+sys.path.insert(0, '${PARENT_DIR}')
+from src.ndk_logcat_parser import LogcatParser
+from src.config import Config
+
 config = Config(
     ndk_path='${ANDROID_NDK_HOME}',
     symbols_dir='${SYMBOLS_DIR}' if '${SYMBOLS_DIR}' else None
 ) if '${SYMBOLS_DIR}' else None
 
-parser = LogcatParser()
+parser = LogcatParser(
+    symbols_dir='${SYMBOLS_DIR}' if '${SYMBOLS_DIR}' else None,
+    ndk_path='${ANDROID_NDK_HOME}' if '${SYMBOLS_DIR}' else None
+)
+
 crash_info = parser.parse_logcat_file('$LOGCAT_FILE')
 if crash_info:
     print(f'\nCrash Information:')
@@ -125,16 +153,6 @@ if crash_info:
     print('\nStack Trace:')
     for line in crash_info.stack_trace:
         print(line)
-    
-    # Try to symbolicate if symbols are available
-    if config and config.symbols_dir:
-        try:
-            from ndk_tools import NDKStackParser
-            stack_parser = NDKStackParser(config)
-            print('\nSymbolicated Stack Trace:')
-            print(stack_parser.symbolicate_trace(crash_info.stack_trace))
-        except Exception as e:
-            print(f'\nFailed to symbolicate: {e}')
 else:
     print('No native crash found in logcat file')
 " 
