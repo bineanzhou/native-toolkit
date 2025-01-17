@@ -15,20 +15,32 @@ class LogcatParser:
     """Parser for native crashes in logcat output"""
     
     # Regular expressions for parsing logcat output
+    _SIGNAL_PATTERN = re.compile(
+        r'Fatal signal (?P<signal>\d+)\s+\((?P<signal_name>[^)]+)\).*?pid\s+(?P<pid>\d+)\s+\((?P<process>[^)]+)\)'
+    )
     _CRASH_PATTERN = re.compile(
-        r'pid:\s*(?P<pid>\d+).*?name:\s*(?P<process>[^>]+?)\s*>>>'  # 进程信息格式
+        r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+Cmdline:\s*(?P<process>[^\n]+)'
     )
     _STACK_TRACE_START = re.compile(
-        r'DEBUG\s+crash_dump64\s+A\s+#00\s+pc'  # 堆栈开始标记
+        r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+#00\s+pc'  # 堆栈开始标记
     )
     _FRAME_PATTERN = re.compile(
-        r'DEBUG\s+crash_dump64\s+A\s+#(?P<frame_num>\d+)\s+pc\s+(?P<addr>[0-9a-f]+)\s+'
+        r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+#(?P<frame_num>\d+)\s+pc\s+(?P<addr>[0-9a-f]+)\s+'
         r'(?P<lib_path>(?:\[.*?\]|/[^ ]+))'  # 支持匿名映射和常规库路径
         r'(?:\s+\((?P<symbol>[^)]+)\))?'  # 可选的符号信息
         r'(?:\s+\(BuildId:\s+(?P<build_id>[a-f0-9]+)\))?'  # 可选的BuildId
     )
     _LIB_NAME_PATTERN = re.compile(
         r'/lib/[^/]+/(?P<lib_name>[^/\s]+)$'  # 从路径中提取库名
+    )
+    _PROCESS_INFO_PATTERN = re.compile(
+        r'pid:\s*(?P<pid>\d+).*?name:\s*(?P<process>[^>]+?)\s*>>>'  # 进程信息格式
+    )
+    _PROCESS_START_PATTERN = re.compile(
+        r'PROCESS STARTED.*?for package\s+(?P<package>[^\s]+)'
+    )
+    _PROCESS_END_PATTERN = re.compile(
+        r'PROCESS ENDED.*?for package\s+(?P<package>[^\s]+)'
     )
     
     def __init__(self, symbols_dir: Optional[str] = None, ndk_path: Optional[str] = None):
@@ -39,10 +51,14 @@ class LogcatParser:
     
     def _get_lib_name(self, lib_path: str) -> Optional[str]:
         """Extract library name from path"""
+        print(f"Extracting library name from path: {lib_path}")
         if '[anon:' in lib_path:  # Skip anonymous mappings
+            print("Skipping anonymous mapping")
             return None
             
         match = self._LIB_NAME_PATTERN.search(lib_path)
+        lib_name = match.group('lib_name') if match else None
+        print(f"Extracted library name: {lib_name}")
         return match.group('lib_name') if match else None
     
     def _get_addr2line_path(self) -> str:
@@ -73,23 +89,31 @@ class LogcatParser:
     
     def _get_lib_path(self, lib_name: str) -> Optional[str]:
         """Get path to library in symbols directory"""
+        print(f"Looking for library {lib_name} in symbols directory: {self.symbols_dir}")
         if not self.symbols_dir:
             return None
             
         # Try different architectures
         for arch in ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86']:
             lib_path = os.path.join(self.symbols_dir, arch, lib_name)
+            print(f"Trying path: {lib_path}")
             if os.path.exists(lib_path):
                 # Verify build ID if available
                 if self.current_build_id:
+                    print(f"Verifying build ID: {self.current_build_id}")
                     build_id = self._extract_build_id(lib_path)
+                    print(f"Found build ID: {build_id}")
                     if build_id and build_id != self.current_build_id:
+                        print("Build ID mismatch, skipping")
                         continue
+                print(f"Found matching library at: {lib_path}")
                 return lib_path
+        print("Library not found in any architecture directory")
         return None
     
     def _addr2line(self, lib_path: str, addr: str) -> str:
         """Run addr2line on an address"""
+        print(f"Running addr2line on {lib_path} with address {addr}")
         cache_key = (lib_path, addr)
         if cache_key in self._addr2line_cache:
             return self._addr2line_cache[cache_key]
@@ -118,61 +142,111 @@ class LogcatParser:
     
     def symbolicate_frame(self, frame: str) -> str:
         """Symbolicate a single stack frame"""
+        print(f"\nSymbolicating frame: {frame}")
         if not (self.symbols_dir and self.ndk_path):
+            print("Symbols or NDK path not set")
             return frame
             
         match = self._FRAME_PATTERN.search(frame)
         if not match:
+            print("Frame pattern not matched")
             return frame
             
         addr = match.group('addr')
         lib_path = match.group('lib_path')
         self.current_build_id = match.group('build_id')
+        print(f"Extracted: addr={addr}, lib_path={lib_path}, build_id={self.current_build_id}")
         
         # Skip Java frames and anonymous mappings
         if '[anon:' in lib_path or 'dalvik' in lib_path.lower():
+            print("Skipping Java/anonymous frame")
             return frame
             
         lib_name = self._get_lib_name(lib_path)
         if not lib_name:
+            print("Failed to extract library name")
             return frame
             
         symbol_lib = self._get_lib_path(lib_name)
         if not symbol_lib:
+            print("Failed to find symbol file")
             return frame
             
+        print(f"Running addr2line for {lib_name} at address {addr}")
         addr2line_output = self._addr2line(symbol_lib, addr)
+        print(f"addr2line output: {addr2line_output}")
         return f"{frame}\n    {addr2line_output}"
     
     def parse_logcat_content(self, content: str) -> Optional[CrashInfo]:
         """Parse logcat content and extract native crash information"""
+        print("\nParsing logcat content...")
         lines = content.splitlines()
         
         crash_info = None
         stack_trace = []
         collecting_stack = False
+        current_package = None
         
         for line in lines:
+            # Look for process start/end
+            start_match = self._PROCESS_START_PATTERN.search(line)
+            if start_match:
+                current_package = start_match.group('package')
+                print(f"Process started: {current_package}")
+                continue
+                
+            end_match = self._PROCESS_END_PATTERN.search(line)
+            if end_match and end_match.group('package') == current_package:
+                print(f"Process ended: {current_package}")
+                collecting_stack = False
+                continue
+                
             # Look for crash header
-            match = self._CRASH_PATTERN.search(line)
+            match = self._SIGNAL_PATTERN.search(line)
             if match:
+                print(f"Found crash info: signal={match.group('signal')} ({match.group('signal_name')})")
                 crash_info = CrashInfo(
                     process=match.group('process').strip(),
-                    signal="",  # Signal might not be available in this format
+                    signal=f"{match.group('signal')} ({match.group('signal_name')})",
+                    stack_trace=[]
+                )
+                continue
+                
+            # Look for crash cmdline
+            match = self._CRASH_PATTERN.search(line)
+            if match and not crash_info:
+                print(f"Found crash cmdline: {match.group('process')}")
+                crash_info = CrashInfo(
+                    process=match.group('process').strip(),
+                    signal="",
+                    stack_trace=[]
+                )
+                continue
+                
+            # Also look for process info
+            match = self._PROCESS_INFO_PATTERN.search(line)
+            if match and not crash_info:
+                print(f"Found process info: process={match.group('process').strip()}")
+                crash_info = CrashInfo(
+                    process=match.group('process').strip(),
+                    signal="",
                     stack_trace=[]
                 )
                 continue
                 
             # Start collecting stack trace after seeing stack trace marker
             if self._STACK_TRACE_START.search(line):
+                print("Found start of stack trace")
                 collecting_stack = True
                 
             # Collect stack trace lines
-            if collecting_stack and 'DEBUG' in line and 'crash_dump64' in line:
+            if collecting_stack and 'DEBUG' in line and ('crash_dump64' in line or 'pid-' in line) and '#' in line:
+                print(f"\nProcessing stack frame: {line}")
                 if self.symbols_dir and self.ndk_path:
                     frame_line = self.symbolicate_frame(line)
                 else:
                     frame_line = line.split('A        ')[1].strip()
+                print(f"Processed frame: {frame_line}")
                 stack_trace.append(frame_line)
                 
         if crash_info:
