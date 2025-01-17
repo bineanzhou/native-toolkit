@@ -63,33 +63,62 @@ if crash_info:
 
 ### 2. 使用命令行脚本
 
+#### 解析Logcat日志
+
 在Linux/macOS上：
 ```bash
-# 设置环境变量
-export ANDROID_NDK_HOME=/path/to/ndk
-export SYMBOLS_DIR=/path/to/symbols
+# 基本用法
+./scripts/parse_logcat.sh app_crash.log
 
-# 解析DMP文件
-./scripts/parse_dmp.sh crash.dmp $SYMBOLS_DIR
+# 使用符号表
+./scripts/parse_logcat.sh -s /path/to/symbols app_crash.log
+# 或
+./scripts/parse_logcat.sh --symbols /path/to/symbols app_crash.log
+
+# 使用环境变量设置符号表
+export SYMBOLS_DIR=/path/to/symbols
+./scripts/parse_logcat.sh app_crash.log
+
+# 显示帮助信息
+./scripts/parse_logcat.sh --help
 ```
 
 在Windows上：
 ```batch
-# 设置环境变量
-set ANDROID_NDK_HOME=C:\path\to\ndk
-set SYMBOLS_DIR=C:\path\to\symbols
+:: 基本用法
+scripts\parse_logcat.bat app_crash.log
 
-# 解析DMP文件
-scripts\parse_dmp.bat crash.dmp %SYMBOLS_DIR%
+:: 使用符号表
+scripts\parse_logcat.bat -s C:\path\to\symbols app_crash.log
+:: 或
+scripts\parse_logcat.bat --symbols C:\path\to\symbols app_crash.log
+
+:: 使用环境变量设置符号表
+set SYMBOLS_DIR=C:\path\to\symbols
+scripts\parse_logcat.bat app_crash.log
+
+:: 显示帮助信息
+scripts\parse_logcat.bat --help
 ```
 
 ## 环境变量配置
 
 工具库使用以下环境变量：
 
-- `ANDROID_NDK_HOME`: Android NDK的安装路径（必需）
-- `SYMBOLS_DIR`: 符号表目录的路径（必需）
+- `ANDROID_NDK_HOME`: Android NDK的安装路径（必需，用于符号化）
+- `SYMBOLS_DIR`: 符号表目录的路径（可选，也可通过命令行选项指定）
 - `OUTPUT_DIR`: 输出文件的目录路径（可选）
+
+## 命令行选项
+
+### parse_logcat 脚本选项
+
+```
+选项:
+  -h, --help            显示帮助信息并退出
+  -s, --symbols <dir>   指定符号表目录的路径
+                       如果未提供，将使用SYMBOLS_DIR环境变量
+```
 
 ## 错误处理
 
@@ -100,6 +129,12 @@ scripts\parse_dmp.bat crash.dmp %SYMBOLS_DIR%
 - 符号表目录不存在
 - DMP文件不存在或无法解析
 - ndk-stack工具执行失败
+
+退出代码：
+- 0: 成功
+- 1: 参数无效
+- 2: 文件未找到
+- 3: 符号表目录未找到
 
 ## 贡献指南
 
