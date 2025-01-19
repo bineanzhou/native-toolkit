@@ -49,6 +49,10 @@ class LogcatParser:
         self._addr2line_cache: Dict[Tuple[str, str], str] = {}
         self.current_build_id = None
     
+    def _print_error(self, message: str):
+        """Print error message in red"""
+        print(f"\033[91m{message}\033[0m")  # 红色文本
+    
     def _get_lib_name(self, lib_path: str) -> Optional[str]:
         """Extract library name from path"""
         print(f"Extracting library name from path: {lib_path}")
@@ -69,7 +73,7 @@ class LogcatParser:
         if os.name == 'nt':  # Windows
             addr2line = os.path.join(self.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'windows-x86_64', 'bin', 'llvm-addr2line.exe')
         else:  # Linux/MacOS
-            addr2line = os.path.join(self.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'linux-x86_64', 'bin', 'llvm-addr2line')
+            addr2line = os.path.join(self.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'darwin-x86_64', 'bin', 'llvm-addr2line')
             
         if not os.path.exists(addr2line):
             raise FileNotFoundError(f"addr2line not found at: {addr2line}")
@@ -256,6 +260,10 @@ class LogcatParser:
     
     def parse_logcat_file(self, logcat_file: str) -> Optional[CrashInfo]:
         """Parse logcat file and extract native crash information"""
+        if not os.path.exists(logcat_file):
+            self._print_error(f"Logcat file not found: {logcat_file}")
+            return None
+        
         with open(logcat_file, 'r') as f:
             content = f.read()
         return self.parse_logcat_content(content)

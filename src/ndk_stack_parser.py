@@ -19,12 +19,34 @@ class NDKStackParser:
             ndk_stack = os.path.join(self.config.ndk_path, 'ndk-stack')
             
         if not os.path.exists(ndk_stack):
+            self._print_error(f"ndk-stack not found at: {ndk_stack}")
             raise FileNotFoundError(f"ndk-stack not found at: {ndk_stack}")
         return ndk_stack
+    
+    def _get_addr2line_path(self) -> str:
+        """Get path to addr2line executable"""
+        if not self.config.ndk_path:
+            self._print_error("NDK path not set")
+            raise ValueError("NDK path not set")
+        
+        if os.name == 'nt':  # Windows
+            addr2line = os.path.join(self.config.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'windows-x86_64', 'bin', 'llvm-addr2line.exe')
+        else:  # Linux/MacOS
+            addr2line = os.path.join(self.config.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'darwin-x86_64', 'bin', 'llvm-addr2line')  # 使用 macOS 路径
+            
+        if not os.path.exists(addr2line):
+            self._print_error(f"addr2line not found at: {addr2line}")
+            raise FileNotFoundError(f"addr2line not found at: {addr2line}")
+        return addr2line
+    
+    def _print_error(self, message: str):
+        """Print error message in red"""
+        print(f"\033[91m{message}\033[0m")  # 红色文本
     
     def parse_dump_file(self, dump_file: str, output_file: Optional[str] = None) -> str:
         """Parse a .dmp file and return symbolicated stack trace"""
         if not os.path.exists(dump_file):
+            self._print_error(f"Dump file not found: {dump_file}")
             raise FileNotFoundError(f"Dump file not found: {dump_file}")
             
         cmd = [
@@ -50,4 +72,5 @@ class NDKStackParser:
             return symbolicated_trace
             
         except subprocess.CalledProcessError as e:
+            self._print_error(f"Failed to parse dump file: {e.stderr}")
             raise RuntimeError(f"Failed to parse dump file: {e.stderr}") 
