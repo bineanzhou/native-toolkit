@@ -114,19 +114,11 @@ else
     export PYTHONPATH="${PARENT_DIR}/src:${PYTHONPATH}"
 fi
 
-# Debug information
-echo "Using PYTHONPATH: ${PYTHONPATH}"
-echo "Looking for ndk_tools in: ${PARENT_DIR}/src"
-
 # Check if the module directory exists
 if [ ! -d "${PARENT_DIR}/src" ]; then
     echo "Error: Python module directory not found: ${PARENT_DIR}/src"
     exit 1
 fi
-
-# List available Python files for debugging
-echo "Available Python files:"
-ls -l "${PARENT_DIR}/src"
 
 # Run Python script
 python3 -c "

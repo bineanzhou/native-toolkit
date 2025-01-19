@@ -64,7 +64,6 @@ if "%~1"=="--help" (
 if "%~1"=="-s" (
     if "%~2"=="" (
         echo Error: --symbols requires a directory argument
-        echo Try '%~nx0 --help' for more information
         exit /b 1
     )
     set "SYMBOLS_DIR=%~2"
@@ -75,7 +74,6 @@ if "%~1"=="-s" (
 if "%~1"=="--symbols" (
     if "%~2"=="" (
         echo Error: --symbols requires a directory argument
-        echo Try '%~nx0 --help' for more information
         exit /b 1
     )
     set "SYMBOLS_DIR=%~2"
@@ -118,16 +116,12 @@ if defined PYTHONPATH (
 
 :: Debug information
 echo Using PYTHONPATH: %PYTHONPATH%
-echo Looking for ndk_tools in: %PARENT_DIR%\src
 
 :: Check if the module directory exists
 if not exist "%PARENT_DIR%\src" (
     echo Error: Python module directory not found: %PARENT_DIR%\src
     exit /b 1
 )
-
-:: List available Python files for debugging
-dir /b "%PARENT_DIR%\src"
 
 python -c "
 import sys

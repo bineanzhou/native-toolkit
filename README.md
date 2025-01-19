@@ -25,12 +25,68 @@ ndk_tools/
 │   ├── ndk_parse_logcat.sh      # 解析logcat崩溃日志的Shell脚本
 │   ├── ndk_parse_dmp.bat        # 解析.dmp文件的Batch脚本
 │   └── ndk_parse_logcat.bat     # 解析logcat崩溃日志的Batch脚本
+│   ├── setup_env.sh             # 环境设置脚本 (Linux/macOS)
+│   ├── setup_env.bat            # 环境设置脚本 (Windows)
+│   ├── quick_analyze.sh         # 快速分析脚本 (Linux/macOS)
+│   └── quick_analyze.bat        # 快速分析脚本 (Windows)
 ```
 
 ## 安装要求
 
 - Python 3.7+
 - Android NDK (需要设置ANDROID_NDK_HOME环境变量)
+
+## 环境变量配置
+
+工具库使用以下环境变量：
+
+- `ANDROID_NDK_HOME`: Android NDK的安装路径（必需，用于符号化）
+- `SYMBOLS_DIR`: 符号表目录的路径（可选，也可通过命令行选项指定）
+- `OUTPUT_DIR`: 输出文件的目录路径（可选）
+
+### 环境设置方式
+
+提供了两种设置环境变量的方式：
+
+#### 1. 使用环境设置脚本（推荐）
+
+在 Linux/macOS 上：
+```bash
+# 设置环境变量
+source scripts/setup_env.sh -n /path/to/ndk [-s /path/to/symbols] [-o /path/to/output]
+
+# 示例
+source scripts/setup_env.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols -o ~/output
+
+# 显示帮助信息
+source scripts/setup_env.sh --help
+```
+
+在 Windows 上：
+```batch
+:: 设置环境变量
+scripts\setup_env.bat -n C:\path\to\ndk [-s C:\path\to\symbols] [-o C:\path\to\output]
+
+:: 示例
+scripts\setup_env.bat -n C:\Android\Sdk\ndk\25.1.8937393 -s C:\symbols -o C:\output
+
+:: 显示帮助信息
+scripts\setup_env.bat --help
+```
+
+#### 2. 手动设置环境变量
+
+```bash
+# Linux/macOS
+export ANDROID_NDK_HOME=/path/to/ndk
+export SYMBOLS_DIR=/path/to/symbols
+export OUTPUT_DIR=/path/to/output
+
+# Windows
+set ANDROID_NDK_HOME=C:\path\to\ndk
+set SYMBOLS_DIR=C:\path\to\symbols
+set OUTPUT_DIR=C:\path\to\output
+```
 
 ## 使用方法
 
@@ -63,7 +119,43 @@ if crash_info:
 
 ### 2. 使用命令行脚本
 
-#### 解析Logcat日志
+#### 快速分析脚本（推荐）
+
+快速分析脚本会自动识别文件类型并调用相应的解析脚本。
+
+在 Linux/macOS 上：
+```bash
+# 基本用法
+./scripts/quick_analyze.sh crash.log
+
+# 使用符号表
+./scripts/quick_analyze.sh -s ~/symbols crash.log
+
+# 指定 NDK 路径
+./scripts/quick_analyze.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols crash.log
+
+# 显示帮助信息
+./scripts/quick_analyze.sh --help
+```
+
+在 Windows 上：
+```batch
+:: 基本用法
+scripts\quick_analyze.bat crash.log
+
+:: 使用符号表
+scripts\quick_analyze.bat -s C:\symbols crash.log
+
+:: 指定 NDK 路径
+scripts\quick_analyze.bat -n C:\Android\Sdk\ndk\25.1.8937393 -s C:\symbols crash.log
+
+:: 显示帮助信息
+scripts\quick_analyze.bat --help
+```
+
+#### 单独使用解析脚本
+
+##### 解析Logcat日志
 
 在Linux/macOS上：
 ```bash
@@ -101,15 +193,17 @@ scripts\ndk_parse_logcat.bat app_crash.log
 scripts\ndk_parse_logcat.bat --help
 ```
 
-## 环境变量配置
-
-工具库使用以下环境变量：
-
-- `ANDROID_NDK_HOME`: Android NDK的安装路径（必需，用于符号化）
-- `SYMBOLS_DIR`: 符号表目录的路径（可选，也可通过命令行选项指定）
-- `OUTPUT_DIR`: 输出文件的目录路径（可选）
-
 ## 命令行选项
+
+### quick_analyze 脚本选项
+
+```
+选项:
+  -h, --help            显示帮助信息并退出
+  -s, --symbols <dir>   指定符号表目录的路径
+  -n, --ndk <path>     指定Android NDK路径
+  -o, --output <dir>   指定输出目录的路径
+```
 
 ### ndk_parse_logcat 脚本选项
 
