@@ -72,8 +72,12 @@ class LogcatParser:
             
         if os.name == 'nt':  # Windows
             addr2line = os.path.join(self.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'windows-x86_64', 'bin', 'llvm-addr2line.exe')
-        else:  # Linux/MacOS
+        elif os.uname().sysname == 'Darwin':  # macOS
             addr2line = os.path.join(self.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'darwin-x86_64', 'bin', 'llvm-addr2line')
+        elif os.name == 'posix':  # Linux
+            addr2line = os.path.join(self.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'linux-x86_64', 'bin', 'llvm-addr2line')
+        else:
+            raise ValueError("Unsupported operating system")
             
         if not os.path.exists(addr2line):
             raise FileNotFoundError(f"addr2line not found at: {addr2line}")

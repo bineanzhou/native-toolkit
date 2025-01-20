@@ -26,16 +26,18 @@ class NDKStackParser:
     def _get_addr2line_path(self) -> str:
         """Get path to addr2line executable"""
         if not self.config.ndk_path:
-            self._print_error("NDK path not set")
             raise ValueError("NDK path not set")
-        
+            
         if os.name == 'nt':  # Windows
             addr2line = os.path.join(self.config.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'windows-x86_64', 'bin', 'llvm-addr2line.exe')
-        else:  # Linux/MacOS
-            addr2line = os.path.join(self.config.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'darwin-x86_64', 'bin', 'llvm-addr2line')  # 使用 macOS 路径
+        elif os.uname().sysname == 'Darwin':  # macOS
+            addr2line = os.path.join(self.config.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'darwin-x86_64', 'bin', 'llvm-addr2line')
+        elif os.name == 'posix':  # Linux
+            addr2line = os.path.join(self.config.ndk_path, 'toolchains', 'llvm', 'prebuilt', 'linux-x86_64', 'bin', 'llvm-addr2line')
+        else:
+            raise ValueError("Unsupported operating system")
             
         if not os.path.exists(addr2line):
-            self._print_error(f"addr2line not found at: {addr2line}")
             raise FileNotFoundError(f"addr2line not found at: {addr2line}")
         return addr2line
     
