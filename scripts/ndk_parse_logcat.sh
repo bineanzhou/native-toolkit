@@ -166,6 +166,10 @@ sys.path.insert(0, '${PARENT_DIR}')
 from src.ndk_logcat_parser import LogcatParser
 from src.config import Config
 
+def log_detail(msg):
+    if ${VERBOSE:-0}:
+        print(f'[DETAIL] {msg}')
+
 config = Config(
     ndk_path='${ANDROID_NDK_HOME}',
     symbols_dir='${SYMBOLS_DIR}' if '${SYMBOLS_DIR}' else None
@@ -179,16 +183,14 @@ parser = LogcatParser(
 
 crash_info = parser.parse_logcat_file('$LOGCAT_FILE')
 if crash_info:
-    if ${VERBOSE:-0}:
-        log_detail('Found crash information')
+    log_detail('Found crash information')
     print(f'\nCrash Information:')
     print(f'Process: {crash_info.process}')
     print(f'Signal: {crash_info.signal}')
     print('\nStack Trace:')
     for line in crash_info.stack_trace:
-        print(line)
+        print(line.strip())
 else:
-    if ${VERBOSE:-0}:
-        log_detail('No native crash found')
+    log_detail('No native crash found')
     print('No native crash found in logcat file')
 " 

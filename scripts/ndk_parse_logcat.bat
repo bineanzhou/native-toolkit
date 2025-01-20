@@ -170,6 +170,10 @@ sys.path.insert(0, r'%PARENT_DIR%')
 from src.ndk_logcat_parser import LogcatParser
 from src.config import Config
 
+def log_detail(msg):
+    if '%VERBOSE%'=='1':
+        print(f'[DETAIL] {msg}')
+
 config = Config(
     ndk_path=r'%ANDROID_NDK_HOME%',
     symbols_dir=r'%SYMBOLS_DIR%' if '%SYMBOLS_DIR%' else None
@@ -183,14 +187,13 @@ parser = LogcatParser(
 
 crash_info = parser.parse_logcat_file(r'%LOGCAT_FILE%')
 if crash_info:
-    if '%VERBOSE%'=='1':
-        print('[DETAIL] Found crash information')
+    log_detail('Found crash information')
     print(f'\nCrash Information:')
     print(f'Process: {crash_info.process}')
     print(f'Signal: {crash_info.signal}')
     print('\nStack Trace:')
     for line in crash_info.stack_trace:
-        print(line)
+        print(line.strip())
     
     # Try to symbolicate if symbols are available
     if config and config.symbols_dir:
@@ -198,14 +201,14 @@ if crash_info:
             from src.ndk_stack_parser import NDKStackParser
             stack_parser = NDKStackParser(config)
             print('\nSymbolicated Stack Trace:')
-            print(stack_parser.symbolicate_trace(crash_info.stack_trace))
+            symbolicated_trace = stack_parser.symbolicate_trace(crash_info.stack_trace)
+            for line in symbolicated_trace.splitlines():
+                print(line.strip())
         except Exception as e:
-            if '%VERBOSE%'=='1':
-                print(f'[DETAIL] Symbolication failed: {e}')
+            log_detail(f'Symbolication failed: {e}')
             print(f'\nFailed to symbolicate: {e}')
 else:
-    if '%VERBOSE%'=='1':
-        print('[DETAIL] No native crash found')
+    log_detail('No native crash found')
     print('No native crash found in logcat file')
 "
 

@@ -166,13 +166,13 @@ class LogcatParser:
         logging.debug(f"\nSymbolicating frame: {frame}")
         if not (self.symbols_dir and self.ndk_path):
             logging.debug("Symbols or NDK path not set")
-            return frame
-            
+            return frame.strip()  # 去掉前后空格
+        
         match = self._FRAME_PATTERN.search(frame)
         if not match:
             logging.debug("Frame pattern not matched")
-            return frame
-            
+            return frame.strip()
+        
         addr = match.group('addr')
         lib_path = match.group('lib_path')
         self.current_build_id = match.group('build_id')
@@ -181,22 +181,22 @@ class LogcatParser:
         # Skip Java frames and anonymous mappings
         if '[anon:' in lib_path or 'dalvik' in lib_path.lower():
             logging.debug("Skipping Java/anonymous frame")
-            return frame
-            
+            return frame.strip()
+        
         lib_name = self._get_lib_name(lib_path)
         if not lib_name:
             logging.debug("Failed to extract library name")
-            return frame
-            
+            return frame.strip()
+        
         symbol_lib = self._get_lib_path(lib_name)
         if not symbol_lib:
             logging.debug("Failed to find symbol file")
-            return frame
-            
+            return frame.strip()
+        
         logging.debug(f"Running addr2line for {lib_name} at address {addr}")
         addr2line_output = self._addr2line(symbol_lib, addr)
         logging.debug(f"addr2line output: {addr2line_output}")
-        return f"{frame}\n    {addr2line_output}"
+        return f"{frame.strip()}\n    {addr2line_output.strip()}"
     
     def parse_logcat_content(self, content: str) -> Optional[CrashInfo]:
         """Parse logcat content and extract native crash information"""
