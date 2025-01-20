@@ -98,7 +98,8 @@ from ndk_tools import NDKStackParser, LogcatParser, Config
 # 创建配置
 config = Config(
     ndk_path="/path/to/ndk",
-    symbols_dir="/path/to/symbols"
+    symbols_dir="/path/to/symbols",
+    output_dir="/path/to/output"
 )
 
 # 解析DMP文件
@@ -107,7 +108,11 @@ stack_trace = parser.parse_dump_file("crash.dmp")
 print(stack_trace)
 
 # 解析Logcat日志
-logcat_parser = LogcatParser()
+logcat_parser = LogcatParser(
+    symbols_dir="/path/to/symbols",
+    ndk_path="/path/to/ndk",
+    output_dir="/path/to/output"
+)
 crash_info = logcat_parser.parse_logcat_file("logcat.txt")
 if crash_info:
     print(f"Process: {crash_info.process}")
@@ -134,6 +139,9 @@ if crash_info:
 # 指定 NDK 路径
 ./scripts/quick_analyze.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols crash.log
 
+# 指定输出目录
+./scripts/quick_analyze.sh -o ~/output crash.log
+
 # 显示帮助信息
 ./scripts/quick_analyze.sh --help
 ```
@@ -148,6 +156,9 @@ scripts\quick_analyze.bat -s C:\symbols crash.log
 
 :: 指定 NDK 路径
 scripts\quick_analyze.bat -n C:\Android\Sdk\ndk\25.1.8937393 -s C:\symbols crash.log
+
+:: 指定输出目录
+scripts\quick_analyze.bat -o C:\output crash.log
 
 :: 显示帮助信息
 scripts\quick_analyze.bat --help
@@ -212,6 +223,7 @@ scripts\ndk_parse_logcat.bat --help
   -h, --help            显示帮助信息并退出
   -s, --symbols <dir>   指定符号表目录的路径
                        如果未提供，将使用SYMBOLS_DIR环境变量
+  -o, --output <dir>    指定输出目录的路径
 ```
 
 ## 错误处理
