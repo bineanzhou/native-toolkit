@@ -5,6 +5,17 @@
 # This script parses Android logcat output to extract native crash information
 # including process name, signal number, and stack trace.
 
+# 检查并更新 PATH
+check_and_update_path() {
+    local script_dir="$1"
+    if [[ ! "$PATH" =~ "$script_dir" ]]; then
+        export PATH="$script_dir:$PATH"
+        echo "[INFO] Added $script_dir to PATH"
+    else
+        echo "[DEBUG] Scripts directory already in PATH"
+    fi
+}
+
 # Function to show help message
 show_help() {
     cat << EOF
@@ -106,6 +117,9 @@ fi
 # Add parent directory to Python path to find ndk_tools module
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
+
+# 检查并更新 PATH
+check_and_update_path "$SCRIPT_DIR"
 
 # Ensure PYTHONPATH is set correctly with absolute paths
 if [ -z "${PYTHONPATH}" ]; then

@@ -1,5 +1,8 @@
 @echo off
 
+:: 检查并更新 PATH
+call :check_and_update_path "%~dp0"
+
 if "%~2"=="" (
     echo Error: Invalid number of arguments
     echo Usage: %0 ^<dmp_file^> ^<symbols_dir^>
@@ -30,4 +33,17 @@ set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "PARENT_DIR=%%~fI"
 set "PYTHONPATH=%PARENT_DIR%\src;%PYTHONPATH%"
 
-python -c "from ndk_tools import NDKStackParser, Config; config = Config.from_env(); parser = NDKStackParser(config); print(parser.parse_dump_file('%DMP_FILE%'))" 
+python -c "from ndk_tools import NDKStackParser, Config; config = Config.from_env(); parser = NDKStackParser(config); print(parser.parse_dump_file('%DMP_FILE%'))"
+
+:check_and_update_path
+setlocal
+set "script_dir=%~1"
+echo %PATH% | findstr /i /c:"%script_dir%" >nul
+if errorlevel 1 (
+    set "PATH=%script_dir%;%PATH%"
+    echo [INFO] Added %script_dir% to PATH
+) else (
+    echo [DEBUG] Scripts directory already in PATH
+)
+endlocal & set "PATH=%PATH%"
+goto :eof 

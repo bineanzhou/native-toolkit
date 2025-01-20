@@ -1,17 +1,23 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: 设置颜色代码
+set "INFO=[32m"    :: 绿色
+set "ERROR=[31m"   :: 红色
+set "DEBUG=[36m"   :: 青色
+set "RESET=[0m"
+
 :: 设置日志函数
 :log_info
-echo [INFO] %*
+echo %INFO%[INFO]%RESET% %*
 exit /b 0
 
 :log_error
-echo [ERROR] %* 1>&2
+echo %ERROR%[ERROR]%RESET% %* 1>&2
 exit /b 0
 
 :log_debug
-if "%DEBUG%"=="1" echo [DEBUG] %*
+if "%DEBUG%"=="1" echo %DEBUG%[DEBUG]%RESET% %*
 exit /b 0
 
 :: 显示帮助信息的函数
@@ -195,4 +201,111 @@ exit /b 0
 
 :end
 endlocal
+exit /b 0
+
+:: 更新配置文件
+:update_shell_config
+call :log_info "Updating shell configuration..."
+call :log_info "Changes to be made:"
+call :log_info "  - Add NDK Tools to PATH"
+call :log_info "  - Set ANDROID_NDK_HOME"
+if defined SYMBOLS_DIR call :log_info "  - Set SYMBOLS_DIR"
+if defined OUTPUT_DIR call :log_info "  - Set OUTPUT_DIR"
+echo.
+
+:: 检查用户配置文件
+if exist "%USERPROFILE%\.bashrc" (
+    set "shell_config=%USERPROFILE%\.bashrc"
+) else if exist "%USERPROFILE%\.bash_profile" (
+    set "shell_config=%USERPROFILE%\.bash_profile"
+) else (
+    set "shell_config=%USERPROFILE%\.bashrc"
+)
+
+:: 备份配置文件
+set "backup_file=%shell_config%.bak.%date:~-4%%date:~3,2%%date:~0,2%_%time:~0,2%%time:~3,2%%time:~6,2%"
+set "backup_file=%backup_file: =0%"
+if exist "%shell_config%" (
+    call :log_info "Backing up %shell_config% to %backup_file%"
+    copy "%shell_config%" "%backup_file%" >nul
+)
+
+:: 检查是否已存在配置
+findstr /c:"# NDK Tools PATH" "%shell_config%" >nul 2>&1
+if not errorlevel 1 (
+    call :log_info "NDK Tools PATH already exists in %shell_config%"
+    call :log_info "Updating existing configuration..."
+    :: 创建临时文件
+    set "temp_file=%TEMP%\ndk_tools_temp.txt"
+    type nul > "%temp_file%"
+    for /f "usebackq delims=" %%a in ("%shell_config%") do (
+        echo %%a | findstr /c:"# NDK Tools PATH" >nul 2>&1
+        if errorlevel 1 (
+            echo %%a >> "%temp_file%"
+        ) else (
+            :: 跳过直到空行
+            for /f "usebackq delims=" %%b in ("%shell_config%") do (
+                if "%%b"=="" goto :continue_copy
+            )
+            :continue_copy
+        )
+    )
+    move /y "%temp_file%" "%shell_config%" >nul
+)
+
+:: 添加新配置
+(
+    echo.
+    echo # NDK Tools PATH
+    echo # Added by NDK Tools setup on %date% %time%
+    echo # Original config backed up to: %backup_file%
+    echo :: Update PATH
+    echo if not "%%PATH%%" == "%%PATH:%SCRIPT_DIR%=%%" goto skip_path
+    echo set "PATH=%SCRIPT_DIR%;%%PATH%%"
+    echo :skip_path
+    
+    echo :: Set NDK_HOME if not exists
+    echo if not defined ANDROID_NDK_HOME (
+    echo     set "ANDROID_NDK_HOME=%ANDROID_NDK_HOME%"
+    echo )
+    if defined SYMBOLS_DIR echo set "SYMBOLS_DIR=%SYMBOLS_DIR%"
+    if defined OUTPUT_DIR echo set "OUTPUT_DIR=%OUTPUT_DIR%"
+    echo.
+) >> "%shell_config%"
+
+call :log_info "Updated %shell_config% with NDK tools configuration"
+call :log_info "Backup saved to: %backup_file%"
+call :log_info "Please restart your terminal to apply changes"
+
+:: 验证更新
+findstr /c:"NDK Tools PATH" "%shell_config%" >nul 2>&1
+if errorlevel 1 (
+    call :log_error "Failed to update configuration"
+    call :log_info "Please restore from backup: %backup_file%"
+    exit /b 1
+) else (
+    call :log_debug "Configuration successfully updated"
+)
+exit /b 0
+
+:: 打印环境信息
+:print_env
+echo.
+echo Current Environment:
+echo ===================
+echo PATH entries:
+for %%a in ("%PATH:;=" "%") do (
+    echo   %%~a
+)
+echo.
+echo NDK Tools:
+echo   ANDROID_NDK_HOME=%ANDROID_NDK_HOME%
+if defined SYMBOLS_DIR echo   SYMBOLS_DIR=%SYMBOLS_DIR%
+if defined OUTPUT_DIR echo   OUTPUT_DIR=%OUTPUT_DIR%
+echo.
+echo Available Commands:
+for %%f in ("%SCRIPT_DIR%\*.bat") do (
+    echo   %%~nxf
+)
+echo.
 exit /b 0 

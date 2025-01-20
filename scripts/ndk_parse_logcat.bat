@@ -1,6 +1,9 @@
 @echo off
 setlocal enabledelayedexpansion
 
+:: 检查并更新 PATH
+call :check_and_update_path "%~dp0"
+
 :: Function to show help message
 :show_help
 echo Usage: %~nx0 [options] ^<logcat_file^>
@@ -158,3 +161,16 @@ else:
 "
 
 endlocal 
+
+:check_and_update_path
+setlocal
+set "script_dir=%~1"
+echo %PATH% | findstr /i /c:"%script_dir%" >nul
+if errorlevel 1 (
+    set "PATH=%script_dir%;%PATH%"
+    echo [INFO] Added %script_dir% to PATH
+) else (
+    echo [DEBUG] Scripts directory already in PATH
+)
+endlocal & set "PATH=%PATH%"
+goto :eof 

@@ -1,5 +1,16 @@
 #!/bin/bash
 
+# 检查并更新 PATH
+check_and_update_path() {
+    local script_dir="$1"
+    if [[ ! "$PATH" =~ "$script_dir" ]]; then
+        export PATH="$script_dir:$PATH"
+        echo "[INFO] Added $script_dir to PATH"
+    else
+        echo "[DEBUG] Scripts directory already in PATH"
+    fi
+}
+
 # Parse DMP file using NDK tools
 if [ "$#" -ne 2 ]; then
     echo "Error: Invalid number of arguments"
@@ -35,7 +46,9 @@ export SYMBOLS_DIR=$SYMBOLS_DIR
 # Add parent directory to Python path to find ndk_tools module
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
-export PYTHONPATH="${PARENT_DIR}/src:${PYTHONPATH:-}"
+
+# 检查并更新 PATH
+check_and_update_path "$SCRIPT_DIR"
 
 # Run Python script
 python3 -c "
