@@ -20,6 +20,7 @@ class CrashInfo:
     """Crash information extracted from logcat"""
     process: str
     signal: str
+    signal_detail: str  # 新增字段，用于记录信号的详细信息
     stack_trace: List[str]
     
 class LogcatParser:
@@ -27,7 +28,7 @@ class LogcatParser:
     
     # Regular expressions for parsing logcat output
     _SIGNAL_PATTERN = re.compile(
-        r'Fatal signal (?P<signal>\d+)\s+\((?P<signal_name>[^)]+)\).*?pid\s+(?P<pid>\d+)\s+\((?P<process>[^)]+)\)'
+        r'(?P<fatal_signal>Fatal signal) (?P<signal>\d+)\s+\((?P<signal_name>[^)]+)\).*?pid\s+(?P<pid>\d+)\s+\((?P<process>[^)]+)\)'
     )
     _CRASH_PATTERN = re.compile(
         r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+Cmdline:\s*(?P<process>[^\n]+)'
@@ -249,7 +250,8 @@ class LogcatParser:
                 logging.info(f"Found crash info: signal={match.group('signal')} ({match.group('signal_name')})")
                 crash_info = CrashInfo(
                     process=match.group('process').strip(),
-                    signal=f"{match.group('signal')} ({match.group('signal_name')})",
+                    signal=f"{match.group('fatal_signal')} {match.group('signal')} ({match.group('signal_name')})",
+                    signal_detail=f"{match.group('fatal_signal')} {match.group('signal')} ({match.group('signal_name')}) - {line.strip()}",
                     stack_trace=[]
                 )
                 continue
@@ -261,6 +263,7 @@ class LogcatParser:
                 crash_info = CrashInfo(
                     process=match.group('process').strip(),
                     signal="",
+                    signal_detail="",  # 初始化为空
                     stack_trace=[]
                 )
                 continue
@@ -272,6 +275,7 @@ class LogcatParser:
                 crash_info = CrashInfo(
                     process=match.group('process').strip(),
                     signal="",
+                    signal_detail="",  # 初始化为空
                     stack_trace=[]
                 )
                 continue
@@ -290,7 +294,7 @@ class LogcatParser:
                     frame_line = line.split('A        ')[1].strip()
                 logging.debug(f"Processed frame: {frame_line}")
                 stack_trace.append(frame_line)
-                
+        
         if crash_info:
             crash_info.stack_trace = stack_trace
             
@@ -319,6 +323,7 @@ class LogcatParser:
             with open(output_file, 'w') as f:
                 f.write(f'Process: {crash_info.process}\n')
                 f.write(f'Signal: {crash_info.signal}\n')
+                f.write(f'Singal Detail: {crash_info.signal_detail}\n')
                 f.write('Stack Trace:\n')
                 for line in crash_info.stack_trace:
                     f.write(f'{line.strip()}\n')
