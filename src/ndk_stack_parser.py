@@ -7,11 +7,12 @@ import logging
 class NDKStackParser:
     """Parser for NDK crash dumps using ndk-stack tool"""
     
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, output_dir: Optional[str] = None):
         self.config = config
         self.config.validate()
         self._ndk_stack_path = self._get_ndk_stack_path()
         self.verbose = os.environ.get('VERBOSE') == '1'
+        self.output_dir = output_dir  # 新增输出目录
         
         # 检查是否已经配置过日志
         if not logging.getLogger().handlers:
@@ -63,13 +64,13 @@ class NDKStackParser:
         """Print error message in red"""
         logging.error(f"\033[91m{message}\033[0m")  # 红色文本
     
-    def parse_dump_file(self, dump_file: str, output_file: Optional[str] = None) -> str:
+    def parse_dump_file(self, dump_file: str) -> str:
         """Parse a .dmp file and return symbolicated stack trace"""
         logging.info(f"Starting to parse dump file: {dump_file}")
         if not os.path.exists(dump_file):
             self._print_error(f"Dump file not found: {dump_file}")
             raise FileNotFoundError(f"Dump file not found: {dump_file}")
-            
+        
         logging.debug(f"Using ndk-stack path: {self._ndk_stack_path}")
         logging.debug(f"Using symbols directory: {self.config.symbols_dir}")
         cmd = [
@@ -90,7 +91,9 @@ class NDKStackParser:
             symbolicated_trace = result.stdout
             logging.debug(f"Symbolication successful, output length: {len(symbolicated_trace)}")
             
-            if output_file:
+            # 如果提供了输出目录，则写入文件
+            if self.output_dir:
+                output_file = os.path.join(self.output_dir, os.path.basename(dump_file) + ".symbolicated.txt")
                 logging.info(f"Writing output to file: {output_file}")
                 with open(output_file, 'w') as f:
                     f.write(symbolicated_trace)

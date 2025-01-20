@@ -54,14 +54,16 @@ class LogcatParser:
         r'PROCESS ENDED.*?for package\s+(?P<package>[^\s]+)'
     )
     
-    def __init__(self, symbols_dir: Optional[str] = None, ndk_path: Optional[str] = None, verbose: bool = False):
+    def __init__(self, symbols_dir: Optional[str] = None, ndk_path: Optional[str] = None, output_dir: Optional[str] = None, verbose: bool = False):
         self.symbols_dir = symbols_dir
         self.ndk_path = ndk_path
+        self.output_dir = output_dir  # 新增输出目录
         self._addr2line_cache: Dict[Tuple[str, str], str] = {}
         self.current_build_id = None
         self.verbose = verbose or os.environ.get('VERBOSE') == '1'
         logging.info(f"Symbols directory: {self.symbols_dir}")
         logging.info(f"NDK path: {self.ndk_path}")
+        logging.info(f"Output directory: {self.output_dir}")
         logging.info(f"Verbose mode: {self.verbose}")
         # 检查是否已经配置过日志
         if not logging.getLogger().handlers:
@@ -305,7 +307,23 @@ class LogcatParser:
         with open(logcat_file, 'r') as f:
             content = f.read()
         logging.debug(f"Read {len(content)} bytes from logcat file")
-        return self.parse_logcat_content(content)
+        
+        crash_info = self.parse_logcat_content(content)
+        
+        # 如果提供了输出目录，则写入结果
+        if self.output_dir and crash_info:
+            # 确保输出目录存在
+            os.makedirs(self.output_dir, exist_ok=True)
+            output_file = os.path.join(self.output_dir, os.path.basename(logcat_file) + ".parsed.txt")
+            logging.info(f"Writing parsed output to file: {output_file}")
+            with open(output_file, 'w') as f:
+                f.write(f'Process: {crash_info.process}\n')
+                f.write(f'Signal: {crash_info.signal}\n')
+                f.write('Stack Trace:\n')
+                for line in crash_info.stack_trace:
+                    f.write(f'{line.strip()}\n')
+        
+        return crash_info
     
     def symbolicate_trace(self, stack_trace: List[str]) -> str:
         """Symbolicate stack trace using addr2line"""
@@ -330,6 +348,7 @@ def parse_args():
    %(prog)s -s /path/to/symbols app_crash.log     # Parse with symbols
    %(prog)s -s /path/to/symbols -v app_crash.log  # Parse with verbose logging
    %(prog)s -n /path/to/ndk -s /path/to/symbols app_crash.log
+   %(prog)s -o /path/to/output app_crash.log       # Specify output directory
  
  Environment Variables:
    ANDROID_NDK_HOME    Path to Android NDK installation (required for symbolication)
@@ -356,17 +375,6 @@ def parse_args():
  '''
     )
     
-    # 修改参数解析逻辑
-    args = []
-    i = 1
-    while i < len(sys.argv):
-        if sys.argv[i] == '-v' or sys.argv[i] == '--verbose':
-            os.environ['VERBOSE'] = '1'
-            i += 1
-            continue
-        args.append(sys.argv[i])
-        i += 1
-    
     parser.add_argument(
         'logcat_file',
         help='Path to the logcat output file containing native crash information'
@@ -382,14 +390,20 @@ def parse_args():
         metavar='PATH'
     )
     parser.add_argument(
+        '-o', '--output',
+        help='Specify output directory for parsed results.',
+        metavar='DIR'
+    )
+    parser.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='Enable verbose logging'
     )
-    parsed_args = parser.parse_args(args)
+    
+    args = parser.parse_args()
     # 确保 verbose 标志与环境变量同步
-    parsed_args.verbose = os.environ.get('VERBOSE') == '1'
-    return parsed_args
+    args.verbose = os.environ.get('VERBOSE') == '1'
+    return args
 
 def main():
     """Main entry point"""
@@ -400,6 +414,7 @@ def main():
     parser = LogcatParser(
         symbols_dir=args.symbols,
         ndk_path=args.ndk or os.environ.get('ANDROID_NDK_HOME'),
+        output_dir=args.output,
         verbose=args.verbose or os.environ.get('VERBOSE') == '1'  # 确保两种方式都能设置 verbose
     )
     print("Created LogcatParser instance")  # 添加调试输出

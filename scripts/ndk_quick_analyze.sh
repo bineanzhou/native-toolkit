@@ -113,6 +113,9 @@ analyze_file() {
         if [ -n "$SYMBOLS_DIR" ]; then
             ARGS+=("-s" "$SYMBOLS_DIR")
         fi
+        if [ -n "$OUTPUT_DIR" ]; then
+            ARGS+=("-o" "$OUTPUT_DIR")
+        fi  
         if [ "$VERBOSE" = "1" ]; then
             ARGS+=("-v")
         fi

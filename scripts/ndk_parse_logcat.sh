@@ -62,7 +62,6 @@ fi
 ARGS=()
 original_args=("$@")  # 保存原始参数
 
-
 while [[ $# -gt 0 ]]; do
     log_debug "Processing parameter: $1"
 
@@ -81,6 +80,19 @@ while [[ $# -gt 0 ]]; do
                 shift
             fi
             ;;
+        # 处理输出目录参数
+        -o|--output)
+            ARGS+=("$1")
+            if [ -n "$2" ]; then
+                OUTPUT_DIR="$2"  # 设置输出目录
+                log_debug "Setting OUTPUT_DIR to: $OUTPUT_DIR"
+                ARGS+=("$(cd "$(dirname "$2")" && pwd)/$(basename "$2")")
+                shift
+            else
+                log_error "Output directory not specified after -o"
+                exit 1
+            fi
+            ;;
         # 处理 verbose 参数
         -v|--verbose)
             log_debug "Setting verbose mode"
@@ -96,6 +108,13 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+# 设置默认输出目录
+if [ -z "$OUTPUT_DIR" ]; then
+    OUTPUT_DIR="$(pwd)/output"
+    log_info "Setting default OUTPUT_DIR to: $OUTPUT_DIR"
+    mkdir -p "$OUTPUT_DIR"  # 创建输出目录
+fi
 
 # 直接调用 Python 脚本
 log_debug "Executing Python script with arguments: ${ARGS[*]}"
