@@ -25,7 +25,7 @@ ndk_tools/
 │   ├── ndk_parse_logcat.sh      # 解析logcat崩溃日志的Shell脚本
 │   ├── ndk_parse_dmp.bat        # 解析.dmp文件的Batch脚本
 │   └── ndk_parse_logcat.bat     # 解析logcat崩溃日志的Batch脚本
-│   ├── setup_env.sh             # 环境设置脚本 (Linux/macOS)
+│   ├── and_setup_env.sh             # 环境设置脚本 (Linux/macOS)
 │   ├── setup_env.bat            # 环境设置脚本 (Windows)
 │   ├── quick_analyze.sh         # 快速分析脚本 (Linux/macOS)
 │   └── quick_analyze.bat        # 快速分析脚本 (Windows)
@@ -53,13 +53,13 @@ ndk_tools/
 在 Linux/macOS 上：
 ```bash
 # 设置环境变量
-source scripts/setup_env.sh -n /path/to/ndk [-s /path/to/symbols] [-o /path/to/output]
+source and_setup_env.sh -n /path/to/ndk [-s /path/to/symbols] [-o /path/to/output]
 
 # 示例
-source scripts/setup_env.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols -o ~/output
+source and_setup_env.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols -o ~/output
 
 # 显示帮助信息
-source scripts/setup_env.sh --help
+source and_setup_env.sh --help
 ```
 
 在 Windows 上：

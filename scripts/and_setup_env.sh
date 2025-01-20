@@ -22,7 +22,7 @@ TOOLS_DIR="$( dirname "$SCRIPT_DIR" )"
 # 显示帮助信息的函数
 show_help() {
     cat << EOF
-Usage: source setup_env.sh [options]
+Usage: source and_setup_env.sh [options]
 
 Set up environment variables for NDK tools.
 
@@ -40,7 +40,7 @@ Environment Variables (if options not provided):
   DEBUG              Set to 1 to enable debug logging
 
 Example:
-  source setup_env.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols -o ~/output
+  source and_setup_env.sh -n ~/Android/Sdk/ndk/25.1.8937393 -s ~/symbols -o ~/output
 EOF
 }
 
@@ -89,7 +89,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         *)
             log_error "Unknown option: $1"
-            log_error "Try 'source setup_env.sh --help' for more information"
+            log_error "Try 'source and_setup_env.sh --help' for more information"
             exit 1
             ;;
     esac

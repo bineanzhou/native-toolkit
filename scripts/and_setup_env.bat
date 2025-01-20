@@ -22,7 +22,7 @@ exit /b 0
 
 :: 显示帮助信息的函数
 :show_help
-echo Usage: setup_env.bat [options]
+echo Usage: and_setup_env.bat [options]
 echo.
 echo Set up environment variables for NDK tools.
 echo.
@@ -40,7 +40,7 @@ echo   OUTPUT_DIR          Output directory path
 echo   DEBUG              Set to 1 to enable debug logging
 echo.
 echo Example:
-echo   setup_env.bat -n C:\Android\Sdk\ndk\25.1.8937393 -s C:\symbols -o C:\output
+echo   and_setup_env.bat -n C:\Android\Sdk\ndk\25.1.8937393 -s C:\symbols -o C:\output
 exit /b 0
 
 :: 主程序开始
@@ -125,7 +125,7 @@ if "%~1"=="--output" (
     goto :parse_args
 )
 call :log_error "Unknown option: %1"
-call :log_error "Try 'setup_env.bat --help' for more information"
+call :log_error "Try 'and_setup_env.bat --help' for more information"
 goto :error
 
 :main
