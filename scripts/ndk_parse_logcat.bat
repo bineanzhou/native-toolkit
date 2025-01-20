@@ -4,6 +4,26 @@ setlocal enabledelayedexpansion
 :: 检查并更新 PATH
 call :check_and_update_path "%~dp0"
 
+:: 设置日志变量
+set "VERBOSE=0"
+
+:: 设置日志函数
+:log_info
+echo [INFO] %*
+exit /b 0
+
+:log_error
+echo [ERROR] %* 1>&2
+exit /b 0
+
+:log_debug
+if "%VERBOSE%"=="1" echo [DEBUG] %*
+exit /b 0
+
+:log_detail
+if "%VERBOSE%"=="1" echo [DETAIL] %*
+exit /b 0
+
 :: Function to show help message
 :show_help
 echo Usage: %~nx0 [options] ^<logcat_file^>
@@ -17,6 +37,7 @@ echo Options:
 echo   -h, --help            Show this help message and exit
 echo   -s, --symbols ^<dir^>   Path to the directory containing symbol files
 echo                        If not provided, will use SYMBOLS_DIR environment variable
+echo   -v, --verbose        Enable verbose logging
 echo.
 echo Environment Variables:
 echo   ANDROID_NDK_HOME    Path to Android NDK installation (required for symbolication)
@@ -25,7 +46,7 @@ echo.
 echo Examples:
 echo   %~nx0 app_crash.log                         # Basic parsing
 echo   %~nx0 -s C:\path\to\symbols app_crash.log   # Parse with symbols
-echo   %~nx0 --symbols C:\path\to\symbols app_crash.log
+echo   %~nx0 -s C:\path\to\symbols -v app_crash.log # Parse with verbose logging
 echo   set SYMBOLS_DIR=C:\symbols ^&^& %~nx0 app_crash.log
 echo.
 echo Output Format:
@@ -64,12 +85,29 @@ if "%~1"=="--help" (
     exit /b 0
 )
 
+if "%~1"=="-v" (
+    set "VERBOSE=1"
+    set "DEBUG=1"
+    call :log_debug "Verbose logging enabled"
+    shift
+    goto :parse_args
+)
+
+if "%~1"=="--verbose" (
+    set "VERBOSE=1"
+    set "DEBUG=1"
+    call :log_debug "Verbose logging enabled"
+    shift
+    goto :parse_args
+)
+
 if "%~1"=="-s" (
     if "%~2"=="" (
-        echo Error: --symbols requires a directory argument
+        call :log_error "--symbols requires a directory argument"
         exit /b 1
     )
     set "SYMBOLS_DIR=%~2"
+    call :log_debug "Symbols directory set to: %SYMBOLS_DIR%"
     shift /2
     goto :parse_args
 )
@@ -137,9 +175,16 @@ config = Config(
     symbols_dir=r'%SYMBOLS_DIR%' if '%SYMBOLS_DIR%' else None
 ) if '%SYMBOLS_DIR%' else None
 
-parser = LogcatParser()
+parser = LogcatParser(
+    symbols_dir=r'%SYMBOLS_DIR%' if '%SYMBOLS_DIR%' else None,
+    ndk_path=r'%ANDROID_NDK_HOME%' if '%SYMBOLS_DIR%' else None,
+    verbose=True if '%VERBOSE%'=='1' else False
+)
+
 crash_info = parser.parse_logcat_file(r'%LOGCAT_FILE%')
 if crash_info:
+    if '%VERBOSE%'=='1':
+        print('[DETAIL] Found crash information')
     print(f'\nCrash Information:')
     print(f'Process: {crash_info.process}')
     print(f'Signal: {crash_info.signal}')
@@ -155,8 +200,12 @@ if crash_info:
             print('\nSymbolicated Stack Trace:')
             print(stack_parser.symbolicate_trace(crash_info.stack_trace))
         except Exception as e:
+            if '%VERBOSE%'=='1':
+                print(f'[DETAIL] Symbolication failed: {e}')
             print(f'\nFailed to symbolicate: {e}')
 else:
+    if '%VERBOSE%'=='1':
+        print('[DETAIL] No native crash found')
     print('No native crash found in logcat file')
 "
 

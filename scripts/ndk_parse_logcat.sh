@@ -5,14 +5,26 @@
 # This script parses Android logcat output to extract native crash information
 # including process name, signal number, and stack trace.
 
-# 检查并更新 PATH
-check_and_update_path() {
-    local script_dir="$1"
-    if [[ ! "$PATH" =~ "$script_dir" ]]; then
-        export PATH="$script_dir:$PATH"
-        echo "[INFO] Added $script_dir to PATH"
-    else
-        echo "[DEBUG] Scripts directory already in PATH"
+# 设置日志函数
+VERBOSE=0
+
+log_info() {
+    echo "[INFO] $1"
+}
+
+log_error() {
+    echo "[ERROR] $1" >&2
+}
+
+log_debug() {
+    if [ "${VERBOSE:-0}" = "1" ]; then
+        echo "[DEBUG] $1"
+    fi
+}
+
+log_detail() {
+    if [ "${VERBOSE:-0}" = "1" ]; then
+        echo "[DETAIL] $1"
     fi
 }
 
@@ -30,6 +42,7 @@ Options:
   -h, --help            Show this help message and exit
   -s, --symbols <dir>   Path to the directory containing symbol files
                        If not provided, will use SYMBOLS_DIR environment variable
+  -v, --verbose        Enable verbose logging
 
 Environment Variables:
   ANDROID_NDK_HOME    Path to Android NDK installation (required for symbolication)
@@ -38,7 +51,7 @@ Environment Variables:
 Examples:
   $0 app_crash.log                         # Basic parsing
   $0 -s /path/to/symbols app_crash.log     # Parse with symbols
-  $0 --symbols /path/to/symbols app_crash.log
+  $0 -s /path/to/symbols -v app_crash.log  # Parse with verbose logging
   SYMBOLS_DIR=/path/to/symbols $0 app_crash.log
 
 Output Format:
@@ -67,21 +80,27 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
+        -v|--verbose)
+            VERBOSE=1
+            export DEBUG=1  # 设置 DEBUG 环境变量用于 Python 脚本
+            log_debug "Verbose logging enabled"
+            shift
+            ;;
         -s|--symbols)
             if [ -z "$2" ]; then
-                echo "Error: --symbols requires a directory argument"
-                echo "Try '$0 --help' for more information"
+                log_error "--symbols requires a directory argument"
                 exit 1
             fi
             SYMBOLS_DIR="$2"
+            log_debug "Symbols directory set to: $SYMBOLS_DIR"
             shift 2
             ;;
         *)
             if [ -z "$LOGCAT_FILE" ]; then
                 LOGCAT_FILE="$1"
+                log_debug "Logcat file set to: $LOGCAT_FILE"
             else
-                echo "Error: Too many arguments"
-                echo "Try '$0 --help' for more information"
+                log_error "Unknown option: $1"
                 exit 1
             fi
             shift
@@ -91,20 +110,21 @@ done
 
 # Check required arguments
 if [ -z "$LOGCAT_FILE" ]; then
-    echo "Error: Logcat file is required"
-    echo "Try '$0 --help' for more information"
+    log_error "Logcat file is required"
     exit 1
 fi
 
 # Check if logcat file exists
 if [ ! -f "$LOGCAT_FILE" ]; then
-    echo "Error: Logcat file not found: $LOGCAT_FILE"
+    log_error "Logcat file not found: $LOGCAT_FILE"
     exit 2
 fi
 
+log_info "Analyzing logcat file: $LOGCAT_FILE"
+
 # Check if symbols directory exists when provided
 if [ -n "$SYMBOLS_DIR" ] && [ ! -d "$SYMBOLS_DIR" ]; then
-    echo "Error: Symbols directory not found: $SYMBOLS_DIR"
+    log_error "Symbols directory not found: $SYMBOLS_DIR"
     exit 3
 fi
 
@@ -119,7 +139,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 PARENT_DIR="$( dirname "$SCRIPT_DIR" )"
 
 # 检查并更新 PATH
-check_and_update_path "$SCRIPT_DIR"
+if [[ ! "$PATH" =~ "$SCRIPT_DIR" ]]; then
+    export PATH="$SCRIPT_DIR:$PATH"
+    log_info "Added $SCRIPT_DIR to PATH"
+else
+    log_debug "Scripts directory already in PATH"
+fi
 
 # Ensure PYTHONPATH is set correctly with absolute paths
 if [ -z "${PYTHONPATH}" ]; then
@@ -148,11 +173,14 @@ config = Config(
 
 parser = LogcatParser(
     symbols_dir='${SYMBOLS_DIR}' if '${SYMBOLS_DIR}' else None,
-    ndk_path='${ANDROID_NDK_HOME}' if '${SYMBOLS_DIR}' else None
+    ndk_path='${ANDROID_NDK_HOME}' if '${SYMBOLS_DIR}' else None,
+    verbose=${VERBOSE:-0}
 )
 
 crash_info = parser.parse_logcat_file('$LOGCAT_FILE')
 if crash_info:
+    if ${VERBOSE:-0}:
+        log_detail('Found crash information')
     print(f'\nCrash Information:')
     print(f'Process: {crash_info.process}')
     print(f'Signal: {crash_info.signal}')
@@ -160,5 +188,7 @@ if crash_info:
     for line in crash_info.stack_trace:
         print(line)
 else:
+    if ${VERBOSE:-0}:
+        log_detail('No native crash found')
     print('No native crash found in logcat file')
 " 
