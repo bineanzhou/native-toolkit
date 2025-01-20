@@ -109,15 +109,20 @@ analyze_file() {
         fi
         "$SCRIPT_DIR/ndk_parse_dmp.sh" "$CRASH_FILE" "$SYMBOLS_DIR"
     else
+        ARGS=()
         if [ -n "$SYMBOLS_DIR" ]; then
-            log_info "Processing logcat file: $CRASH_FILE"
-            if [ "${VERBOSE}" = "1" ]; then
-                export DEBUG=1
-            fi
-            "$SCRIPT_DIR/ndk_parse_logcat.sh" -s "$SYMBOLS_DIR" "$CRASH_FILE"
-        else
-            "$SCRIPT_DIR/ndk_parse_logcat.sh" "$CRASH_FILE"
+            ARGS+=("-s" "$SYMBOLS_DIR")
         fi
+        if [ "$VERBOSE" = "1" ]; then
+            ARGS+=("-v")
+        fi
+        ARGS+=("$CRASH_FILE")
+        "$SCRIPT_DIR/ndk_parse_logcat.sh" "${ARGS[@]}"
+        # if [ -n "$SYMBOLS_DIR" ]; then            
+        #     "$SCRIPT_DIR/ndk_parse_logcat.sh" -s "$SYMBOLS_DIR" "$CRASH_FILE"
+        # else
+        #     "$SCRIPT_DIR/ndk_parse_logcat.sh" "$CRASH_FILE"
+        # fi
     fi
 }
 
@@ -133,4 +138,4 @@ if [ $? -eq 0 ]; then
 else
     log_error "Analysis failed"
     exit 1
-fi 
+fi

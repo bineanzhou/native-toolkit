@@ -150,9 +150,9 @@ for %%I in ("%SCRIPT_DIR%..") do set "PARENT_DIR=%%~fI"
 
 :: Ensure PYTHONPATH is set correctly with absolute paths
 if defined PYTHONPATH (
-    set "PYTHONPATH=%PARENT_DIR%\src;%PYTHONPATH%"
+    set "PYTHONPATH=%PARENT_DIR%;%PYTHONPATH%"
 ) else (
-    set "PYTHONPATH=%PARENT_DIR%\src"
+    set "PYTHONPATH=%PARENT_DIR%"
 )
 
 :: Debug information
@@ -164,53 +164,42 @@ if not exist "%PARENT_DIR%\src" (
     exit /b 1
 )
 
-python -c "
-import sys
-sys.path.insert(0, r'%PARENT_DIR%')
-from src.ndk_logcat_parser import LogcatParser
-from src.config import Config
-
-def log_detail(msg):
-    if '%VERBOSE%'=='1':
-        print(f'[DETAIL] {msg}')
-
-config = Config(
-    ndk_path=r'%ANDROID_NDK_HOME%',
-    symbols_dir=r'%SYMBOLS_DIR%' if '%SYMBOLS_DIR%' else None
-) if '%SYMBOLS_DIR%' else None
-
-parser = LogcatParser(
-    symbols_dir=r'%SYMBOLS_DIR%' if '%SYMBOLS_DIR%' else None,
-    ndk_path=r'%ANDROID_NDK_HOME%' if '%SYMBOLS_DIR%' else None,
-    verbose=True if '%VERBOSE%'=='1' else False
+:: 设置环境变量
+if "%VERBOSE%"=="1" (
+    set "VERBOSE=1"
 )
 
-crash_info = parser.parse_logcat_file(r'%LOGCAT_FILE%')
-if crash_info:
-    log_detail('Found crash information')
-    print(f'\nCrash Information:')
-    print(f'Process: {crash_info.process}')
-    print(f'Signal: {crash_info.signal}')
-    print('\nStack Trace:')
-    for line in crash_info.stack_trace:
-        print(line.strip())
-    
-    # Try to symbolicate if symbols are available
-    if config and config.symbols_dir:
-        try:
-            from src.ndk_stack_parser import NDKStackParser
-            stack_parser = NDKStackParser(config)
-            print('\nSymbolicated Stack Trace:')
-            symbolicated_trace = stack_parser.symbolicate_trace(crash_info.stack_trace)
-            for line in symbolicated_trace.splitlines():
-                print(line.strip())
-        except Exception as e:
-            log_detail(f'Symbolication failed: {e}')
-            print(f'\nFailed to symbolicate: {e}')
-else:
-    log_detail('No native crash found')
-    print('No native crash found in logcat file')
-"
+:: 获取输入文件的绝对路径
+set "ARGS="
+:parse_path
+if "%~1"=="" goto :run_script
+
+:: 如果是文件参数，转换为绝对路径
+if "%~x1"==".log" (
+    set "ARGS=!ARGS! "%~f1""
+) else if "%~x1"==".txt" (
+    set "ARGS=!ARGS! "%~f1""
+) else if "%~1"=="-s" (
+    set "ARGS=!ARGS! -s"
+    if not "%~2"=="" (
+        set "ARGS=!ARGS! "%~f2""
+        shift
+    )
+) else if "%~1"=="--symbols" (
+    set "ARGS=!ARGS! --symbols"
+    if not "%~2"=="" (
+        set "ARGS=!ARGS! "%~f2""
+        shift
+    )
+) else (
+    set "ARGS=!ARGS! %1"
+)
+shift
+goto :parse_path
+
+:run_script
+:: 直接调用 Python 脚本
+set "PYTHONPATH=%PARENT_DIR%" && python "%PARENT_DIR%\src\ndk_logcat_parser.py" %ARGS%
 
 endlocal 
 

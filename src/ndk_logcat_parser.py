@@ -4,6 +4,16 @@ import subprocess
 from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass
 import logging
+import argparse
+import sys
+
+# 避免循环导入
+if __name__ == '__main__':
+    # 当作为主程序运行时，添加父目录到 Python 路径
+    import os.path
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
 
 @dataclass
 class CrashInfo:
@@ -50,17 +60,24 @@ class LogcatParser:
         self._addr2line_cache: Dict[Tuple[str, str], str] = {}
         self.current_build_id = None
         self.verbose = verbose or os.environ.get('VERBOSE') == '1'
-        
-        # 配置日志
-        self._setup_logging()
+        logging.info(f"Symbols directory: {self.symbols_dir}")
+        logging.info(f"NDK path: {self.ndk_path}")
+        logging.info(f"Verbose mode: {self.verbose}")
+        # 检查是否已经配置过日志
+        if not logging.getLogger().handlers:
+            self._setup_logging()
     
     def _setup_logging(self):
         """设置日志级别和格式"""
-        level = logging.DEBUG if self.verbose else logging.INFO
+        # 首先配置日志
         logging.basicConfig(
-            level=level,
+            level=logging.DEBUG if self.verbose else logging.INFO,
             format='[%(levelname)s] %(message)s'
         )
+        
+        # 然后记录日志级别
+        level = logging.DEBUG if self.verbose else logging.INFO
+        logging.info(f"Logging level set to: {logging.getLevelName(level)}")
     
     def _print_error(self, message: str):
         """Print error message in red"""
@@ -200,8 +217,10 @@ class LogcatParser:
     
     def parse_logcat_content(self, content: str) -> Optional[CrashInfo]:
         """Parse logcat content and extract native crash information"""
-        logging.info("\nParsing logcat content...")
+        logging.info("Parsing logcat content...")
+        logging.debug(f"Content length: {len(content)} bytes")
         lines = content.splitlines()
+        logging.debug(f"Found {len(lines)} lines in logcat")
         
         crash_info = None
         stack_trace = []
@@ -277,12 +296,15 @@ class LogcatParser:
     
     def parse_logcat_file(self, logcat_file: str) -> Optional[CrashInfo]:
         """Parse logcat file and extract native crash information"""
+        logging.info(f"Starting to parse logcat file: {logcat_file}")
         if not os.path.exists(logcat_file):
             self._print_error(f"Logcat file not found: {logcat_file}")
             return None
         
+        logging.debug("Reading logcat file content...")
         with open(logcat_file, 'r') as f:
             content = f.read()
+        logging.debug(f"Read {len(content)} bytes from logcat file")
         return self.parse_logcat_content(content)
     
     def symbolicate_trace(self, stack_trace: List[str]) -> str:
@@ -295,4 +317,110 @@ class LogcatParser:
             symbolicated_frame = self.symbolicate_frame(frame)
             symbolicated_frames.append(symbolicated_frame)
             
-        return '\n'.join(symbolicated_frames) 
+        return '\n'.join(symbolicated_frames)
+
+def parse_args():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='Parse Android logcat output to extract and analyze native crash information.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+ Examples:
+   %(prog)s app_crash.log                         # Basic parsing
+   %(prog)s -s /path/to/symbols app_crash.log     # Parse with symbols
+   %(prog)s -s /path/to/symbols -v app_crash.log  # Parse with verbose logging
+   %(prog)s -n /path/to/ndk -s /path/to/symbols app_crash.log
+ 
+ Environment Variables:
+   ANDROID_NDK_HOME    Path to Android NDK installation (required for symbolication)
+   SYMBOLS_DIR         Alternative way to specify symbols directory
+   VERBOSE            Set to 1 to enable verbose logging
+ 
+ Output Format:
+   Crash Information:
+     Process: <process_name>
+     Signal: <signal_number>
+ 
+   Stack Trace:
+     <stack_trace_lines>
+ 
+   Symbolicated Stack Trace: (if symbols provided)
+     <symbolicated_stack_trace>
+ 
+ Exit Codes:
+   0   Success
+   1   Invalid arguments
+   2   File not found
+   3   Symbols directory not found
+   4   NDK path not found
+ '''
+    )
+    
+    # 修改参数解析逻辑
+    args = []
+    i = 1
+    while i < len(sys.argv):
+        if sys.argv[i] == '-v' or sys.argv[i] == '--verbose':
+            os.environ['VERBOSE'] = '1'
+            i += 1
+            continue
+        args.append(sys.argv[i])
+        i += 1
+    
+    parser.add_argument(
+        'logcat_file',
+        help='Path to the logcat output file containing native crash information'
+    )
+    parser.add_argument(
+        '-s', '--symbols',
+        help='Path to the directory containing symbol files. Required for symbolication.',
+        metavar='DIR'
+    )
+    parser.add_argument(
+        '-n', '--ndk',
+        help='Path to Android NDK installation. Required for symbolication if ANDROID_NDK_HOME is not set.',
+        metavar='PATH'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable verbose logging'
+    )
+    parsed_args = parser.parse_args(args)
+    # 确保 verbose 标志与环境变量同步
+    parsed_args.verbose = os.environ.get('VERBOSE') == '1'
+    return parsed_args
+
+def main():
+    """Main entry point"""
+    print("Starting main function...")
+    args = parse_args()
+    print(f"Parsed arguments: {args}")  # 现在应该显示正确的 verbose 值
+    
+    parser = LogcatParser(
+        symbols_dir=args.symbols,
+        ndk_path=args.ndk or os.environ.get('ANDROID_NDK_HOME'),
+        verbose=args.verbose or os.environ.get('VERBOSE') == '1'  # 确保两种方式都能设置 verbose
+    )
+    print("Created LogcatParser instance")  # 添加调试输出
+    
+    # 解析日志文件
+    crash_info = parser.parse_logcat_file(args.logcat_file)
+    
+    # 输出结果
+    if crash_info:
+        if args.verbose:
+            logging.debug('Found crash information')
+        print(f'\nCrash Information:')
+        print(f'Process: {crash_info.process}')
+        print(f'Signal: {crash_info.signal}')
+        print('\nStack Trace:')
+        for line in crash_info.stack_trace:
+            print(line.strip())
+    else:
+        if args.verbose:
+            logging.debug('No native crash found')
+        print('No native crash found in logcat file')
+
+if __name__ == '__main__':
+    main() 
