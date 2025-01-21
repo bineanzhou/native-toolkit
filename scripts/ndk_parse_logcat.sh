@@ -118,4 +118,5 @@ fi
 
 # 直接调用 Python 脚本
 log_debug "Executing Python script with arguments: ${ARGS[*]}"
-PYTHONPATH="${PARENT_DIR}" python3 "${PARENT_DIR}/src/ndk_logcat_parser.py" "${ARGS[@]}" 
+PYTHONPATH="${PARENT_DIR}" 
+python3 "${PARENT_DIR}/src/ndk_logcat_parser.py" "${ARGS[@]}" 

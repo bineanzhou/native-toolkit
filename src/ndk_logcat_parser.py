@@ -39,8 +39,8 @@ class LogcatParser:
     _FRAME_PATTERN = re.compile(
         r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+#(?P<frame_num>\d+)\s+pc\s+(?P<addr>[0-9a-f]+)\s+'
         r'(?P<lib_path>(?:\[.*?\]|/[^ ]+))'  # 支持匿名映射和常规库路径
-        r'(?:\s+\((?P<symbol>[^)]+)\))?'  # 可选的符号信息
-        r'(?:\s+\(BuildId:\s+(?P<build_id>[a-f0-9]+)\))?'  # 可选的BuildId
+        r'(?:\s+\((?P<symbol>.*?\+\d+)\))?'  # 可选的符号信息
+        r'(?:.*?)(?:\s+\(BuildId:\s+(?P<build_id>[a-f0-9]+)\))?'  # 可选的BuildId
     )
     _LIB_NAME_PATTERN = re.compile(
         r'/lib/[^/]+/(?P<lib_name>[^/\s]+)$'  # 从路径中提取库名
@@ -62,13 +62,13 @@ class LogcatParser:
         self._addr2line_cache: Dict[Tuple[str, str], str] = {}
         self.current_build_id = None
         self.verbose = verbose or os.environ.get('VERBOSE') == '1'
+        self._setup_logging()
         logging.info(f"Symbols directory: {self.symbols_dir}")
         logging.info(f"NDK path: {self.ndk_path}")
         logging.info(f"Output directory: {self.output_dir}")
         logging.info(f"Verbose mode: {self.verbose}")
-        # 检查是否已经配置过日志
-        if not logging.getLogger().handlers:
-            self._setup_logging()
+
+
     
     def _setup_logging(self):
         """设置日志级别和格式"""
@@ -210,7 +210,7 @@ class LogcatParser:
         
         symbol_lib = self._get_lib_path(lib_name)
         if not symbol_lib:
-            logging.debug("Failed to find symbol file")
+            logging.error("Failed to find symbol file")
             return frame.strip()
         
         logging.debug(f"Running addr2line for {lib_name} at address {addr}")
@@ -254,6 +254,7 @@ class LogcatParser:
                     signal_detail=f"{match.group('fatal_signal')} {match.group('signal')} ({match.group('signal_name')}) - {line.strip()}",
                     stack_trace=[]
                 )
+                collecting_stack = True  # 开始收集堆栈信息
                 continue
                 
             # Look for crash cmdline
@@ -286,7 +287,7 @@ class LogcatParser:
                 collecting_stack = True
                 
             # Collect stack trace lines
-            if collecting_stack and 'DEBUG' in line and ('crash_dump64' in line or 'pid-' in line) and '#' in line:
+            if collecting_stack and ('DEBUG' in line) and ('crash_dump64' in line or 'pid-' in line) and '#' in line:
                 logging.debug(f"\nProcessing stack frame: {line}")
                 if self.symbols_dir and self.ndk_path:
                     frame_line = self.symbolicate_frame(line)
@@ -364,6 +365,7 @@ def parse_args():
    Crash Information:
      Process: <process_name>
      Signal: <signal_number>
+     Signal Detail: <signal_detail>
  
    Stack Trace:
      <stack_trace_lines>
@@ -407,7 +409,7 @@ def parse_args():
     
     args = parser.parse_args()
     # 确保 verbose 标志与环境变量同步
-    args.verbose = os.environ.get('VERBOSE') == '1'
+    args.verbose = args.verbose or os.environ.get('VERBOSE') == '1'
     return args
 
 def main():
@@ -434,6 +436,7 @@ def main():
         print(f'\nCrash Information:')
         print(f'Process: {crash_info.process}')
         print(f'Signal: {crash_info.signal}')
+        print(f'Signal Detail: {crash_info.signal_detail}')
         print('\nStack Trace:')
         for line in crash_info.stack_trace:
             print(line.strip())
