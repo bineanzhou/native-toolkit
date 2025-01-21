@@ -249,10 +249,11 @@ class LogcatParser:
             match = self._SIGNAL_PATTERN.search(line)
             if match:
                 logging.info(f"Found crash info: signal={match.group('signal')} ({match.group('signal_name')})")
+                fatal_signal_msg = line.split(match.group('fatal_signal'))[1].strip() if match.group('fatal_signal') in line else line
                 crash_info = CrashInfo(
                     process=match.group('process').strip(),
                     signal=f"{match.group('fatal_signal')} {match.group('signal')} ({match.group('signal_name')})",
-                    signal_detail=f"{match.group('fatal_signal')} {match.group('signal')} ({match.group('signal_name')}) - {line.strip()}",
+                    signal_detail=f"{match.group('fatal_signal')} - {fatal_signal_msg}",
                     stack_trace=[]
                 )
                 collecting_stack = True  # 开始收集堆栈信息
