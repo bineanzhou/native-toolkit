@@ -55,10 +55,11 @@ class LogcatParser:
         r'PROCESS ENDED.*?for package\s+(?P<package>[^\s]+)'
     )
     
-    def __init__(self, symbols_dir: Optional[str] = None, ndk_path: Optional[str] = None, output_dir: Optional[str] = None, verbose: bool = False):
+    def __init__(self, symbols_dir: Optional[str] = None, ndk_path: Optional[str] = None, output_dir: Optional[str] = None, verbose: bool = False, verify_build_id: bool = False):
         self.symbols_dir = symbols_dir
         self.ndk_path = ndk_path
-        self.output_dir = output_dir  # 新增输出目录
+        self.output_dir = output_dir
+        self.verify_build_id = verify_build_id  # 新增参数
         self._addr2line_cache: Dict[Tuple[str, str], str] = {}
         self.current_build_id = None
         self.verbose = verbose or os.environ.get('VERBOSE') == '1'
@@ -135,12 +136,12 @@ class LogcatParser:
             return None
             
         # Try different architectures
-        for arch in ['arm64-v8a', 'armeabi-v7a', 'x86_64', 'x86']:
+        for arch in ['arm64-v8a', 'armeabi-v7a']:
             lib_path = os.path.join(self.symbols_dir, arch, lib_name)
             logging.debug(f"Trying path: {lib_path}")
             if os.path.exists(lib_path):
-                # Verify build ID if available
-                if self.current_build_id:
+                # Verify build ID if available and if verification is enabled
+                if self.verify_build_id and self.current_build_id:
                     logging.debug(f"Verifying build ID: {self.current_build_id}")
                     build_id = self._extract_build_id(lib_path)
                     logging.debug(f"Found build ID: {build_id}")
@@ -349,37 +350,11 @@ def parse_args():
         description='Parse Android logcat output to extract and analyze native crash information.',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
- Examples:
-   %(prog)s app_crash.log                         # Basic parsing
-   %(prog)s -s /path/to/symbols app_crash.log     # Parse with symbols
-   %(prog)s -s /path/to/symbols -v app_crash.log  # Parse with verbose logging
-   %(prog)s -n /path/to/ndk -s /path/to/symbols app_crash.log
-   %(prog)s -o /path/to/output app_crash.log       # Specify output directory
- 
- Environment Variables:
-   ANDROID_NDK_HOME    Path to Android NDK installation (required for symbolication)
-   SYMBOLS_DIR         Alternative way to specify symbols directory
-   VERBOSE            Set to 1 to enable verbose logging
- 
- Output Format:
-   Crash Information:
-     Process: <process_name>
-     Signal: <signal_number>
-     Signal Detail: <signal_detail>
- 
-   Stack Trace:
-     <stack_trace_lines>
- 
-   Symbolicated Stack Trace: (if symbols provided)
-     <symbolicated_stack_trace>
- 
- Exit Codes:
-   0   Success
-   1   Invalid arguments
-   2   File not found
-   3   Symbols directory not found
-   4   NDK path not found
- '''
+        Examples:
+          %(prog)s app_crash.log                         # Basic parsing
+          %(prog)s -s /path/to/symbols app_crash.log     # Parse with symbols
+          %(prog)s -s /path/to/symbols --no-verify-build-id app_crash.log  # Parse without Build ID verification
+        '''
     )
     
     parser.add_argument(
@@ -406,6 +381,11 @@ def parse_args():
         action='store_true',
         help='Enable verbose logging'
     )
+    parser.add_argument(
+        '--verify-build-id',
+        action='store_true',
+        help='Disable Build ID verification'
+    )
     
     args = parser.parse_args()
     # 确保 verbose 标志与环境变量同步
@@ -422,7 +402,8 @@ def main():
         symbols_dir=args.symbols,
         ndk_path=args.ndk or os.environ.get('ANDROID_NDK_HOME'),
         output_dir=args.output,
-        verbose=args.verbose or os.environ.get('VERBOSE') == '1'  # 确保两种方式都能设置 verbose
+        verbose=args.verbose or os.environ.get('VERBOSE') == '1',  # 确保两种方式都能设置 verbose
+        verify_build_id= args.verify_build_id  # 根据命令行参数设置 verify_build_id
     )
     print("Created LogcatParser instance")  # 添加调试输出
     
