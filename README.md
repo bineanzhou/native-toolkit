@@ -9,6 +9,7 @@
 - 支持灵活配置：配置符号表目录、日志文件路径、NDK路径等
 - 跨平台支持：支持Linux、Windows和macOS
 - 简化指令：提供Shell和Batch脚本，简化用户操作
+- **Build ID 验证**：可选的 Build ID 验证功能，默认关闭
 
 ## 项目结构
 
@@ -111,12 +112,14 @@ print(stack_trace)
 logcat_parser = LogcatParser(
     symbols_dir="/path/to/symbols",
     ndk_path="/path/to/ndk",
-    output_dir="/path/to/output"
+    output_dir="/path/to/output",
+    verify_build_id=False  # 默认关闭 Build ID 验证
 )
 crash_info = logcat_parser.parse_logcat_file("logcat.txt")
 if crash_info:
     print(f"Process: {crash_info.process}")
     print(f"Signal: {crash_info.signal}")
+    print(f"Signal Detail: {crash_info.signal_detail}")
     print("Stack trace:")
     for line in crash_info.stack_trace:
         print(line)
@@ -214,6 +217,7 @@ scripts\ndk_parse_logcat.bat --help
   -s, --symbols <dir>   指定符号表目录的路径
   -n, --ndk <path>     指定Android NDK路径
   -o, --output <dir>   指定输出目录的路径
+  --no-verify-build-id  禁用 Build ID 验证
 ```
 
 ### ndk_parse_logcat 脚本选项
@@ -224,6 +228,7 @@ scripts\ndk_parse_logcat.bat --help
   -s, --symbols <dir>   指定符号表目录的路径
                        如果未提供，将使用SYMBOLS_DIR环境变量
   -o, --output <dir>    指定输出目录的路径
+  --verify-build-id     启用 Build ID 验证
 ```
 
 ## 错误处理
