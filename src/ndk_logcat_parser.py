@@ -31,13 +31,13 @@ class LogcatParser:
         r'(?P<fatal_signal>Fatal signal) (?P<signal>\d+)\s+\((?P<signal_name>[^)]+)\).*?pid\s+(?P<pid>\d+)\s+\((?P<process>[^)]+)\)'
     )
     _CRASH_PATTERN = re.compile(
-        r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+Cmdline:\s*(?P<process>[^\n]+)'
+        r'(?:crash_dump64|pid-\d+)\s+A\s+Cmdline:\s*(?P<process>[^\n]+)'
     )
     _STACK_TRACE_START = re.compile(
-        r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+#00\s+pc'  # 堆栈开始标记
+        r'\s+#00\s+pc'  # 堆栈开始标记
     )
     _FRAME_PATTERN = re.compile(
-        r'DEBUG\s+(?:crash_dump64|pid-\d+)\s+A\s+#(?P<frame_num>\d+)\s+pc\s+(?P<addr>[0-9a-f]+)\s+'
+        r'\s+#(?P<frame_num>\d+)\s+pc\s+(?P<addr>[0-9a-f]+)\s+'
         r'(?P<lib_path>(?:\[.*?\]|/[^ ]+))'  # 支持匿名映射和常规库路径
         r'(?:\s+\((?P<symbol>.*?\+\d+)\))?'  # 可选的符号信息
         r'(?:.*?)(?:\s+\(BuildId:\s+(?P<build_id>[a-f0-9]+)\))?'  # 可选的BuildId
@@ -289,7 +289,7 @@ class LogcatParser:
                 collecting_stack = True
                 
             # Collect stack trace lines
-            if collecting_stack and ('DEBUG' in line) and ('crash_dump64' in line or 'pid-' in line) and '#' in line:
+            if collecting_stack:
                 logging.debug(f"\nProcessing stack frame: {line}")
                 if self.symbols_dir and self.ndk_path:
                     frame_line = self.symbolicate_frame(line)
