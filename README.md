@@ -6,6 +6,9 @@
 
 - 解析.dmp文件：使用ndk-stack工具解析崩溃堆栈
 - 解析原生崩溃日志：从logcat输出中提取原生崩溃信息
+  - 支持标准 logcat 格式
+  - 支持 runtime.cc 格式的崩溃日志
+  - 支持 JNI 错误检测日志
 - 支持灵活配置：配置符号表目录、日志文件路径、NDK路径等
 - 跨平台支持：支持Linux、Windows和macOS
 - 简化指令：提供Shell和Batch脚本，简化用户操作
@@ -258,3 +261,37 @@ scripts\ndk_parse_logcat.bat --help
 ## 许可证
 
 本项目采用MIT许可证 - 详见 [LICENSE](LICENSE) 文件
+
+### 支持的崩溃日志格式
+
+工具支持以下几种崩溃日志格式的解析：
+
+1. 标准 Native 崩溃格式
+```
+Fatal signal 11 (SIGSEGV), code 1, fault addr 0x... in tid ... (...)
+```
+
+2. Runtime 崩溃格式
+```
+runtime.cc:675] Runtime aborting...
+runtime.cc:675] native: #00 pc ...
+```
+
+3. JNI 错误检测格式
+```
+JNI DETECTED ERROR IN APPLICATION: ...
+    in call to ...
+```
+
+### 日志解析示例
+
+```bash
+# 解析标准崩溃日志
+./scripts/ndk_parse_logcat.sh app_crash.log
+
+# 解析带符号表的崩溃日志
+./scripts/ndk_parse_logcat.sh -s /path/to/symbols app_crash.log
+
+# 解析 JNI 错误日志
+./scripts/ndk_parse_logcat.sh --verify-build-id jni_error.log
+```
