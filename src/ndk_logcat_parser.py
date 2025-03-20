@@ -233,6 +233,7 @@ class LogcatParser:
         
         for line in lines:
             # Look for process start/end
+            logging.info(f"Processing line: {line}")
             start_match = self._PROCESS_START_PATTERN.search(line)
             if start_match:
                 current_package = start_match.group('package')
